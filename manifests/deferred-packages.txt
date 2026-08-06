@@ -1,0 +1,5 @@
+# Deliberately deferred packages
+# Review and install only after the current Hyprland + Quickshell trial is stable.
+# Reason: Hyprland shows a post-login recommendation for this optional GUI helper.
+
+hyprland-guiutils

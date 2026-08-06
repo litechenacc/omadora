@@ -1,0 +1,11 @@
+# Pinned upstream checkout and large/reproducible evidence
+/upstream/
+/backups/
+/logs/
+
+# Agent/session artefacts
+/session.sh
+
+# Editor and OS files
+.DS_Store
+*~
