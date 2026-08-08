@@ -12,6 +12,7 @@ This repository is the **planning, documentation, and reproducible integration l
 ├── display-manager-survey.md         Display-manager research and the SDDM decision
 ├── omadora-hyprland-uwsm.desktop     Additive Omadora Wayland session entry
 ├── manifests/                        Reviewed Fedora package manifests
+├── omadora-launcher/                 Tracked launcher source and user deployer
 ├── scripts/                          Maintained, executable operational helpers
 ├── assets/                           Version-controlled assets/templates deployed by scripts
 ├── docs/                             Design records, acceptance checks, and this guide
@@ -46,6 +47,13 @@ Scripts are the executable, maintained integration surface:
 | `omarchy-system-stats` | Fedora compatibility helper used by imported shell components. |
 
 Run a script only after reviewing it. Root-required scripts state that requirement and should be invoked explicitly with `sudo`; they never consume credentials from the repository.
+
+### `omadora-launcher/`
+
+The flattened launcher is maintained here rather than directly in the
+untracked `~/.local/bin` directory. `deploy.sh` validates and atomically
+installs its command layer for the current user and deploys its tracked
+Quickshell menu implementation into the selected shell checkout.
 
 ### `assets/`
 

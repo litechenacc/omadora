@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# omarchy:summary=Pick one option from a menu
+# omarchy:group=menu
+# omarchy:name=select
+# omadora:args=prompt [option...] [--query text] [-- menu args...]
+# omadora:examples=omadora-menu-select Format jpg png --query Format
+
+# An option may lead with an icon, as "<glyph><TAB><label>". The menu shows the
+# glyph and returns the label alone, so callers never strip it back off.
+
+set -euo pipefail
+
+if (( $# < 1 )); then
+  echo "Usage: omadora-menu-select <prompt> [option...] [-- menu args...]" >&2
+  exit 1
+fi
+
+prompt="$1"
+shift
+
+options=()
+initial_query=""
+menu_width=""
+menu_maxheight=""
+
+while (( $# > 0 )); do
+  if [[ $1 == "--query" ]]; then
+    shift
+    if (( $# == 0 )); then
+      echo "omadora-menu-select: --query requires text" >&2
+      exit 1
+    fi
+    initial_query="$1"
+    shift
+    continue
+  fi
+
+  if [[ $1 == "--" ]]; then
+    shift
+    while (( $# > 0 )); do
+      case "$1" in
+        --width)
+          shift
+          if (( $# == 0 )); then
+            echo "omadora-menu-select: --width requires a value" >&2
+            exit 1
+          fi
+          menu_width="$1"
+          ;;
+        --height|--maxheight)
+          arg="$1"
+          shift
+          if (( $# == 0 )); then
+            echo "omadora-menu-select: $arg requires a value" >&2
+            exit 1
+          fi
+          menu_maxheight="$1"
+          ;;
+      esac
+      shift
+    done
+    break
+  fi
+
+  options+=("$1")
+  shift
+done
+
+if (( ${#options[@]} == 0 )) && [[ ! -t 0 ]]; then
+  mapfile -t options
+fi
+
+if (( ${#options[@]} == 0 )); then
+  echo "Usage: omadora-menu-select <prompt> [option...] [-- menu args...]" >&2
+  exit 1
+fi
+
+selection_file=$(mktemp)
+done_file=$(mktemp)
+rm -f "$done_file"
+trap 'rm -f "$selection_file" "$done_file"' EXIT
+
+# A launcher app option is encoded as RS + "app" + TAB + icon + TAB + id + TAB + label.
+# Keep the public selector interface label-based for all ordinary callers.
+options_json=$(python3 - "${options[@]}" <<'PY'
+import json, sys
+marker = "\x1eapp\t"
+rows = []
+for option in sys.argv[1:]:
+    if option.startswith(marker):
+        try:
+            icon, app_id, label = option[len(marker):].split("\t", 2)
+        except ValueError:
+            raise SystemExit("invalid Omadora app option")
+        rows.append({"label": label, "value": "APP:" + app_id, "appIcon": icon})
+    elif option.startswith("\x1ebookmark\t"):
+        try:
+            label, url = option[len("\x1ebookmark\t"):].split("\t", 1)
+        except ValueError:
+            raise SystemExit("invalid Helium bookmark option")
+        rows.append({"label": label, "value": "BOOKMARK:" + url, "bookmark": True})
+    else:
+        rows.append(option)
+print(json.dumps(rows, ensure_ascii=False))
+PY
+)
+payload=$(perl -MEncode=decode -MJSON::PP=encode_json,decode_json -e '
+  my $payload = {
+    mode => "select",
+    prompt => decode("UTF-8", $ARGV[0]),
+    options => decode_json($ARGV[1]),
+    selectionFile => decode("UTF-8", $ARGV[2]),
+    doneFile => decode("UTF-8", $ARGV[3])
+  };
+  $payload->{width} = int($ARGV[4]) if length($ARGV[4] // "");
+  $payload->{maxHeight} = int($ARGV[5]) if length($ARGV[5] // "");
+  $payload->{initialQuery} = decode("UTF-8", $ARGV[6]) if length($ARGV[6] // "");
+  print encode_json($payload)
+' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight" "$initial_query")
+
+# A second launcher invocation is a toggle: close the existing shared menu
+# instead of sending a second request whose completion file could never fill.
+if [[ $(omadora-shell shell call omarchy.menu isOpen "{}" 2>/dev/null || true) == "true" ]]; then
+  omadora-shell shell hide omarchy.menu >/dev/null
+  exit 1
+fi
+omadora-shell shell summon omarchy.menu "$payload" >/dev/null
+
+while [[ ! -e $done_file ]]; do
+  sleep 0.05
+done
+
+if [[ -s $selection_file ]]; then
+  cat "$selection_file"
+else
+  exit 1
+fi

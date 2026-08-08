@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Fast compositor binding entry point: avoid constructing launcher rows merely
+# to dismiss a menu that is already visible.
+set -euo pipefail
+
+if [[ $(omadora-shell shell call omarchy.menu isOpen "{}" 2>/dev/null || true) == "true" ]]; then
+  exec omadora-shell shell hide omarchy.menu
+fi
+exec omadora-launcher "$@"

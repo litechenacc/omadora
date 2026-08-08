@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Single Omadora search launcher: apps plus Fedora-safe actions, calculator,
+# and an explicit command prompt. It replaces the upstream nested Go menus.
+set -euo pipefail
+
+initial_query=""
+if [[ ${1:-} == "--query" ]]; then
+  [[ $# -ge 2 ]] || { echo "omadora-launcher: --query requires text" >&2; exit 2; }
+  initial_query=$2
+  shift 2
+fi
+[[ $# -eq 0 ]] || { echo "Usage: omadora-launcher [--query TEXT]" >&2; exit 2; }
+
+runtime=${XDG_RUNTIME_DIR:-/run/user/$UID}
+cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/omadora
+mkdir -p "$cache_dir"
+entries=$(mktemp "$cache_dir/launcher.XXXXXX")
+trap 'rm -f "$entries"' EXIT
+
+cat >"$entries" <<'EOF'
+Theme picker	ACTION_THEME
+System: Lock	ACTION_LOCK
+System: Suspend	ACTION_SUSPEND
+System: Log out	ACTION_LOGOUT
+System: Reboot	ACTION_REBOOT
+System: Shut down	ACTION_SHUTDOWN
+Audio controls	PANEL_AUDIO
+Bluetooth controls	PANEL_BLUETOOTH
+Network controls	PANEL_NETWORK
+Display controls	PANEL_MONITOR
+Power controls	PANEL_POWER
+Clipboard history	PANEL_CLIPBOARD
+Emoji picker	PANEL_EMOJIS
+Calculate expression…	ACTION_CALCULATE
+Run command…	ACTION_COMMAND
+EOF
+python3 - >>"$entries" <<'PY'
+import configparser, os, pathlib
+roots = [pathlib.Path.home()/'.local/share/applications', pathlib.Path('/usr/local/share/applications'), pathlib.Path('/usr/share/applications')]
+seen = set()
+for root in roots:
+    if not root.is_dir(): continue
+    for path in root.glob('*.desktop'):
+        ident = path.name
+        if ident in seen: continue
+        cp = configparser.ConfigParser(interpolation=None)
+        try:
+            cp.read(path, encoding='utf-8')
+            d = cp['Desktop Entry']
+        except Exception:
+            continue
+        if d.get('Type', 'Application') != 'Application' or d.getboolean('NoDisplay', fallback=False) or d.getboolean('Hidden', fallback=False): continue
+        name = d.get('Name', '').strip()
+        if not name: continue
+        seen.add(ident)
+        # RS marks an app row for omadora-menu-select; QML receives its real
+        # desktop icon and returns APP:<desktop-id> without exposing metadata.
+        print(f'\x1eapp\t{d.get("Icon", "").strip()}\t{ident}\t{name}')
+PY
+# Chromium-family Helium stores bookmarks as JSON. Feed them as structured rows;
+# the picker exposes them only after g Tab, never in the normal app list.
+python3 - >>"$entries" <<'PY'
+import json, os, pathlib
+paths = [
+    pathlib.Path.home()/'.config/net.imput.helium/Default/Bookmarks',
+    pathlib.Path.home()/'.config/helium/Default/Bookmarks',
+    pathlib.Path.home()/'.config/Helium/Default/Bookmarks',
+    pathlib.Path.home()/'.var/app/net.imput.helium/config/helium/Default/Bookmarks',
+]
+def walk(node):
+    if isinstance(node, dict):
+        if node.get('type') == 'url' and node.get('name') and node.get('url'):
+            print('\x1ebookmark\t%s\t%s' % (str(node['name']).replace('\t',' '), str(node['url']).replace('\t','')))
+        for value in node.values(): walk(value)
+    elif isinstance(node, list):
+        for value in node: walk(value)
+for path in paths:
+    try:
+        walk(json.loads(path.read_text(encoding='utf-8')))
+        break
+    except (OSError, ValueError): pass
+PY
+
+mapfile -t labels < <(awk -F '\t' 'substr($0, 1, 1) == "\036" { print; next } { print $1 }' "$entries" | sort -f)
+selection=$(omadora-menu-select 'Omadora' "${labels[@]}" --query "$initial_query" -- --width 720 --height 560) || exit 0
+case "$selection" in
+  APP:*|CALCULATE:*|WEBSEARCH:*|CHATGPT:*|BOOKMARK:*) value=$selection ;;
+  *) value=$(awk -F '\t' -v key="$selection" '$1 == key {print $2; exit}' "$entries") ;;
+esac
+
+case "$value" in
+  APP:*) desktop=${value#APP:}; exec gtk-launch "${desktop%.desktop}" ;;
+  CALCULATE:*)
+    expr=${value#CALCULATE:}
+    result=$(printf '%s\n' "$expr" | bc -l 2>&1) || true
+    printf '%s\n' "$result" | wl-copy
+    notify-send 'Calculator' "$result" ;;
+  WEBSEARCH:*)
+    query=${value#WEBSEARCH:}
+    [[ -n $query ]] && exec omadora-open-url "https://www.google.com/search?q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$query")" ;;
+  CHATGPT:*)
+    prompt=${value#CHATGPT:}
+    [[ -n $prompt ]] && exec omadora-open-url --submit "https://chatgpt.com/?prompt=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$prompt")" ;;
+  BOOKMARK:*) exec omadora-open-url "${value#BOOKMARK:}" ;;
+  ACTION_THEME)
+    theme=$(omadora-theme list | omadora-menu-select 'Omadora themes' -- --width 520 --height 460) && [[ -n $theme ]] && omadora-theme set "$theme" ;;
+  ACTION_LOCK) exec hyprlock ;;
+  ACTION_SUSPEND) exec systemctl suspend ;;
+  ACTION_LOGOUT) exec omadora-system-logout ;;
+  ACTION_REBOOT) exec systemctl reboot ;;
+  ACTION_SHUTDOWN) exec systemctl poweroff ;;
+  PANEL_*) panel=${value#PANEL_}; exec omadora-shell shell toggle "omarchy.${panel,,}" ;;
+  ACTION_CALCULATE)
+    expr=$(omadora-menu-input --calculator 'Calculate') || exit 0
+    [[ -n $expr ]] || exit 0
+    result=$(printf '%s\n' "$expr" | bc -l 2>&1) || true
+    printf '%s\n' "$result" | wl-copy
+    notify-send 'Calculator' "$result" ;;
+  ACTION_COMMAND)
+    cmd=$(omadora-menu-input 'Run command') || exit 0
+    [[ -n $cmd ]] || exit 0
+    exec uwsm-app -- ghostty -e bash -lc "$cmd; printf '\n[press Enter to close]'; read -r" ;;
+esac

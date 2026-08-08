@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Request one free-form value through the existing Quickshell menu surface.
+set -euo pipefail
+calculator=false
+if [[ ${1:-} == "--calculator" ]]; then calculator=true; shift; fi
+prompt=${1:-Input}
+[[ $# -le 1 ]] || { echo "Usage: omadora-menu-input [--calculator] [prompt]" >&2; exit 2; }
+selection=$(mktemp)
+done=$(mktemp)
+rm -f "$done"
+trap 'rm -f "$selection" "$done"' EXIT
+payload=$(python3 - "$prompt" "$selection" "$done" "$calculator" <<'PY'
+import json, sys
+print(json.dumps({"mode":"input", "prompt":sys.argv[1], "selectionFile":sys.argv[2], "doneFile":sys.argv[3], "width":620, "calculator": sys.argv[4] == "true"}))
+PY
+)
+omadora-shell shell summon omarchy.menu "$payload" >/dev/null
+while [[ ! -e $done ]]; do sleep 0.05; done
+[[ -s $selection ]] && cat "$selection"

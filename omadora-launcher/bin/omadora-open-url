@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Open a URL through the desktop default browser, focus Helium, and optionally
+# submit a prefilled web form after its page has loaded.
+set -euo pipefail
+submit=false
+if [[ ${1:-} == --submit ]]; then submit=true; shift; fi
+url=${1:?Usage: omadora-open-url [--submit] URL}
+[[ $# -eq 1 ]] || { echo "Usage: omadora-open-url [--submit] URL" >&2; exit 2; }
+xdg-open "$url" >/dev/null 2>&1
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if hyprctl dispatch focuswindow 'class:^(helium)$' >/dev/null 2>&1; then break; fi
+  sleep 0.1
+done
+if $submit; then
+  # ChatGPT's ?prompt= route fills and focuses its composer but intentionally
+  # does not submit. Give the SPA time to hydrate, then press Enter there.
+  sleep 1.5
+  hyprctl dispatch sendshortcut ', RETURN, class:^(helium)$' >/dev/null
+fi
