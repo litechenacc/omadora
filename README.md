@@ -2,7 +2,7 @@
 
 **Omadora** is a personal Fedora Hyprland desktop inspired by [Omarchy](https://omarchy.org/).
 
-The name means **Omakaze Fedora**: an Omarchy-like, opinionated desktop made for Fedora, shaped around my own preferences. It is also a small nod to *Doraemon* and its **tanomuyo** (“leave it to me”) spirit.
+The name means **Omakaze Fedora**: an Omarchy-like, opinionated desktop made for Fedora, shaped around my own preferences. It is also a small nod to *Doraemon* and **tanomuyo**: the confidence of handing work to a trusted machine.
 
 ## What it is
 
