@@ -11,7 +11,7 @@ Omadora is a selective Fedora port inspired by Omarchy. It is intentionally not 
 | Installation | Omarchy/LinuxBeginnings install paths and Arch package assumptions | No installer or AUR use; reviewed Fedora RPM transactions only |
 | Upstream source | Active Omarchy configuration | Pinned, read-only reference checkout; selected assets/QML/bindings are adopted deliberately |
 | Session lifecycle | Omarchy session conventions | UWSM-managed Hyprland graphical session |
-| Login/display manager | Omarchy system integration can theme the login path | Retains Plasma login and the stock Hyprland session; Omadora is an additive session entry |
+| Login/display manager | SDDM Wayland greeter hosted by Hyprland | Fedora SDDM hosts Hyprland through `start-hyprland`; an Omadora-maintained, Omarchy-derived QML greeter is installed by a reviewed root script |
 | Portals and polkit | Omarchy-oriented integration | Fedora portal packages retained; `hyprpolkitagent` retained to avoid competing authentication agents |
 | Shell | Omarchy Quickshell | Omarchy Quickshell components with Fedora adapters and an Omadora shell configuration |
 | Bar and menus | Upstream menu structure and commands | One flattened `omadora-launcher`; only Fedora-safe, mapped actions are exposed |
@@ -31,8 +31,8 @@ Omadora is a selective Fedora port inspired by Omarchy. It is intentionally not 
 The following Omarchy areas are out of scope unless separately reviewed for Fedora:
 
 - Arch repositories, AUR, package installation, and upgrade scripts
-- `/etc` edits, bootloader/Plymouth configuration, and display-manager replacement
-- Omarchy SDDM and boot theming
+- Omarchy’s broad `/etc` edits, bootloader/Plymouth configuration, and installer-driven display-manager replacement
+- Omarchy boot theming (the SDDM greeter is selectively adopted and maintained locally)
 - Arch-specific browser extension locations, package paths, and service assumptions
 - Any menu action without a verified Fedora implementation
 

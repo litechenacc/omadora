@@ -34,16 +34,20 @@ Hyprland compositor showing a QML theme over the desktop wallpaper.
 Installed `sddm`, `sddm-themes`, `sddm-wayland-generic`.
 
 Files modified:
-- `/etc/sddm.conf.d/10-hyprland.conf` → `CompositorCommand=/usr/bin/hyprland --config /usr/share/sddm/hyprland.lua`
-- `/usr/share/sddm/hyprland.lua` → minimal greeter compositor config
-- `/etc/sddm.conf.d/40-omadora.conf` → `[Theme] Current=maldives`, Numlock
-- `/usr/share/sddm/themes/maldives/background.jpg` → **your actual desktop
-  wallpaper** `themes/miasma/backgrounds/nature-of-fear.jpg` (backup: `.orig`)
-- `/usr/share/wayland-sessions/omadora-hyprland-uwsm.desktop` copied so SDDM lists it
+- `/etc/sddm.conf.d/99-omadora-greeter.conf` → selects the `omarchy` theme and
+  uses `CompositorCommand=/usr/bin/start-hyprland -- --config /usr/share/sddm/hyprland.lua`.
+  The late, dedicated file avoids changing Fedora's stock SDDM configuration.
+- `/usr/share/sddm/hyprland.lua` → Omarchy's minimal valid Lua greeter-compositor config.
+- `/usr/share/sddm/themes/omarchy/` → pinned Omarchy assets plus Omadora's maintained
+  QML template: no wordmark/lock icon, compact translucent white-bordered password field,
+  soft white halo, and a 4K wallpaper.
+- `/usr/share/wayland-sessions/omadora-hyprland-uwsm.desktop` copied so SDDM lists it.
+- `scripts/install-omadora-sddm-greeter.sh` reproducibly installs this greeter and
+  stores a root-only backup outside `sddm.conf.d` (SDDM reads every file in that directory).
 
 Result (verified running):
 ```
-sddm → sddm-helper → hyprland (compositor) → sddm-greeter-qt (greeter)
+sddm → sddm-helper → start-hyprland → hyprland (compositor) → sddm-greeter-qt (greeter)
 ```
 `display-manager.service → sddm.service`; `graphical.target` default.
 Sessions shown: `hyprland.desktop`, `omadora-hyprland-uwsm.desktop`.
@@ -52,8 +56,8 @@ To reach it from a TTY: press **Ctrl+Alt+F7** (the DM VT), then log into
 **Hyprland** or **Omadora (Hyprland UWSM)**.
 
 ## Alternatives if you want even more
-- **Omarchy's own `omarchy` theme**: copy `default/sddm/omarchy/` →
-  `/usr/share/sddm/themes/` and set `Current=omarchy`.
+- **Omarchy's own `omarchy` theme** is the selected base; Omadora's maintained
+  template is intentionally a small visual variation rather than an untracked live edit.
 - **`ly`** if you prefer a typographic terminal login.
 - Later hook Omad-theme up to the greeter so the login changes with `tokyo-night`
   etc. (this is the one thing DIVERGENCE.md currently defers).
