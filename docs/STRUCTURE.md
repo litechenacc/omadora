@@ -14,6 +14,7 @@ This repository is the **planning, documentation, and reproducible integration l
 ├── manifests/                        Reviewed Fedora package manifests
 ├── omadora-launcher/                 Tracked launcher source and user deployer
 ├── helpers/                          Handy shell-hotkey and UX helpers, plus their deploy command
+├── assets/fcitx5/                    Fcitx5 environment, service, and Rime overrides
 ├── scripts/                          Root deployment and standalone maintenance scripts
 ├── Makefile                          Unified deployment and validation entry point
 ├── assets/                           Version-controlled assets/templates deployed by helpers
@@ -47,7 +48,7 @@ Helpers are the executable, maintained integration surface. They provide handy s
 | `omadora-audio-output-volume` | PipeWire-native default-output volume helper; preserves the Quickshell OSD without requiring `pactl`. |
 | `deploy.sh` | Validates or atomically installs all non-root helpers into `~/.local/bin`. |
 
-Use `make deploy` to deploy non-root helpers and launcher files, then `sudo make deploy-root` for root-owned files. `make check` validates both parts without writing files.
+Use `make deploy` to deploy non-root helpers, launcher files, and Fcitx5/Rime, then `sudo make deploy-root` for root-owned files. `make check` validates both parts without writing files.
 
 ### `scripts/`
 
@@ -57,6 +58,7 @@ Standalone maintenance and root-deployment scripts that are not shell-hotkey or 
 | --- | --- |
 | `create-btrfs-snapshot.sh` | Creates the pre-change Btrfs safety snapshot. |
 | `deploy-root.sh` | Root-only SDDM greeter deployer. It backs up the prior Omarchy theme/config before replacing it. |
+| `deploy-fcitx5.sh` | User-level Fcitx5/Rime deployer; installs the tracked integration, fetches the official Bopomofo schema, and enables the session service. |
 
 ### `omadora-launcher/`
 
@@ -70,6 +72,7 @@ Quickshell menu implementation into the selected shell checkout.
 Declarative inputs for helpers, not a copy of all installed system state.
 
 - `assets/sddm/omadora/Main.qml` is the maintained SDDM template: wallpaper background, no Omarchy wordmark or lock icon, and the translucent white-outlined password field.
+- `assets/fcitx5/` contains the user environment, graphical-session service, Fcitx profile, and Rime overrides. The Bopomofo schema checkout remains user state and is fetched by `scripts/deploy-fcitx5.sh`.
 - `scripts/deploy-root.sh` combines this template with pinned upstream SDDM assets and a fetched 4K wallpaper at deployment time.
 
 ### Session entry

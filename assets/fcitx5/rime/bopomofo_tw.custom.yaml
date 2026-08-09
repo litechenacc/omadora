@@ -1,0 +1,9 @@
+# Enable free-order Zhuyin within each syllable while retaining Taiwan-standard
+# Traditional characters and the standard 大千 keyboard layout.
+patch:
+  speller/algebra:
+    __patch:
+      - zhuyin:/pinyin_to_zhuyin
+      - zhuyin:/free_order
+      - zhuyin:/abbreviation
+      - zhuyin:/keymap_bopomofo

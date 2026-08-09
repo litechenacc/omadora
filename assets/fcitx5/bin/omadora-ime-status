@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Emit Waybar-compatible JSON for Omarchy's custom command bar module.
+set -euo pipefail
+
+if ! fcitx5-remote --check >/dev/null 2>&1; then
+  printf '%s\n' '{"text":"IME","tooltip":"Fcitx5 is not running","class":"inactive"}'
+  exit 0
+fi
+
+state=$(fcitx5-remote 2>/dev/null || printf '0')
+method=$(fcitx5-remote -n 2>/dev/null || true)
+
+if [[ $state == 2 && $method == rime ]]; then
+  printf '%s\n' '{"text":"注","tooltip":"Rime: 注音·臺灣正體 (click to toggle English)","class":"active"}'
+elif [[ $method == rime ]]; then
+  printf '%s\n' '{"text":"EN","tooltip":"Rime is inactive (click to enable 注音)","class":"inactive"}'
+else
+  printf '%s\n' '{"text":"EN","tooltip":"English keyboard (click to enable 注音)","class":"inactive"}'
+fi
