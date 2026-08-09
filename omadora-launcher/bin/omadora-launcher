@@ -19,6 +19,7 @@ trap 'rm -f "$entries"' EXIT
 
 cat >"$entries" <<'EOF'
 Theme picker	ACTION_THEME
+Theme picker (live preview)	ACTION_THEME_PREVIEW
 System: Lock	ACTION_LOCK
 System: Suspend	ACTION_SUSPEND
 System: Log out	ACTION_LOGOUT
@@ -103,7 +104,9 @@ case "$value" in
     [[ -n $prompt ]] && exec omadora-open-url --submit "https://chatgpt.com/?prompt=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$prompt")" ;;
   BOOKMARK:*) exec omadora-open-url "${value#BOOKMARK:}" ;;
   ACTION_THEME)
-    theme=$(omadora-theme list | omadora-menu-select 'Omadora themes' -- --width 520 --height 460) && [[ -n $theme ]] && omadora-theme set "$theme" ;;
+    theme=$(omadora-theme list | omadora-menu-select 'Omadora themes' -- --width 520 --height 460) && [[ -n $theme ]] && omadora-theme set "$theme"
+    ;;
+  ACTION_THEME_PREVIEW) exec omadora-theme-picker-preview ;;
   ACTION_LOCK) exec hyprlock ;;
   ACTION_SUSPEND) exec systemctl suspend ;;
   ACTION_LOGOUT) exec omadora-system-logout ;;

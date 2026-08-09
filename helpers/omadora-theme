@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+# Apply portable user-level Omadora theme outputs. This deliberately avoids
+# system, boot, display-manager, and package-manager configuration.
+set -euo pipefail
+
+source_root="${OMARCHY_PATH:-$HOME/wts/omadora/upstream/omarchy}"
+themes_root="$source_root/themes"
+state_root="$HOME/.local/state/omarchy/current"
+theme_root="$HOME/.local/share/omadora/themes"
+hypr_theme="$HOME/.config/hypr/omadora-theme.lua"
+hyprpaper_conf="$HOME/.config/hypr/hyprpaper.conf"
+ghostty_config="$HOME/.config/ghostty/config"
+yazi_theme="$HOME/.config/yazi/theme.toml"
+btop_config="$HOME/.config/btop/btop.conf"
+btop_theme="$HOME/.config/btop/themes/omadora.theme"
+preview_root="${XDG_CACHE_HOME:-$HOME/.cache}/omadora/theme-preview"
+
+usage() { echo 'Usage: omadora-theme {list|current|set THEME|preview THEME|restore|reset}'; }
+get_color() {
+  local key=$1 fallback=${2:-}
+  local value
+  value=$(sed -n "s/^[[:space:]]*$key[[:space:]]*=[[:space:]]*[\"']\{0,1\}\(#[0-9A-Fa-f]\{6\}\).*/\1/p" "$colors" | head -n1)
+  printf '%s' "${value:-$fallback}"
+}
+write_btop_config() {
+  local temporary
+  mkdir -p "$(dirname "$btop_config")"
+  temporary=$(mktemp "$(dirname "$btop_config")/.btop.conf.XXXXXX")
+  if [[ -f $btop_config ]]; then
+    sed -E 's|^[[:space:]]*color_theme[[:space:]]*=.*$|color_theme = "omadora"|' "$btop_config" >"$temporary"
+    grep -qE '^[[:space:]]*color_theme[[:space:]]*=' "$temporary" || printf '\ncolor_theme = "omadora"\n' >>"$temporary"
+  else
+    printf 'color_theme = "omadora"\n' >"$temporary"
+  fi
+  mv -f "$temporary" "$btop_config"
+}
+
+case "${1:-}" in
+  list) find "$themes_root" -mindepth 2 -maxdepth 2 -type f -name colors.toml -printf '%h\n' | xargs -r -n1 basename | sort; exit 0 ;;
+  current) readlink "$state_root/theme" 2>/dev/null | xargs -r basename; exit 0 ;;
+  restore)
+    [[ -d $preview_root ]] || { echo 'No Omadora theme preview is active.' >&2; exit 1; }
+    if [[ -e $preview_root/hypr-theme-existed ]]; then cp "$preview_root/omadora-theme.lua" "$hypr_theme"; else rm -f "$hypr_theme"; fi
+    if [[ -e $preview_root/hyprpaper-existed ]]; then cp "$preview_root/original-hyprpaper.conf" "$hyprpaper_conf"; else rm -f "$hyprpaper_conf"; fi
+    if [[ -e $preview_root/ghostty-config-existed ]]; then cp "$preview_root/original-ghostty-config" "$ghostty_config"; else rm -f "$ghostty_config"; fi
+    pgrep -x ghostty >/dev/null && pkill -SIGUSR2 ghostty || true
+    pkill -x hyprpaper 2>/dev/null || true
+    [[ -f $hyprpaper_conf ]] && hyprpaper -c "$hyprpaper_conf" >/dev/null 2>&1 &
+    hyprctl reload 2>/dev/null || true
+    current_theme=$(readlink -f "$state_root/theme" 2>/dev/null || true)
+    if [[ -f $current_theme/colors.toml && -f $current_theme/shell.toml ]]; then
+      omarchy-shell -q shell applyTheme "$(base64 -w0 "$current_theme/colors.toml")" "$(base64 -w0 "$current_theme/shell.toml")"
+    fi
+    rm -rf "$preview_root"
+    echo 'Restored committed Omadora theme.'
+    exit 0
+    ;;
+  reset)
+    rm -f "$state_root/theme" "$hypr_theme" "$hyprpaper_conf" "$ghostty_config" "$yazi_theme" "$btop_theme"
+    hyprctl reload 2>/dev/null || true
+    pgrep -x ghostty >/dev/null && pkill -SIGUSR2 ghostty || true
+    pgrep -x btop >/dev/null && pkill -SIGUSR2 btop || true
+    exit 0
+    ;;
+  set) preview=false; theme=${2:?Usage: omadora-theme set THEME} ;;
+  preview) preview=true; theme=${2:?Usage: omadora-theme preview THEME} ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+colors="$themes_root/$theme/colors.toml"
+[[ -f $colors ]] || { echo "Unknown theme: $theme" >&2; exit 2; }
+if [[ ${preview:-false} == true ]]; then
+  mkdir -p "$preview_root" "$(dirname "$hypr_theme")"
+  if [[ ! -e $preview_root/snapshot ]]; then
+    [[ -f $hypr_theme ]] && { cp "$hypr_theme" "$preview_root/omadora-theme.lua"; touch "$preview_root/hypr-theme-existed"; }
+    [[ -f $hyprpaper_conf ]] && { cp "$hyprpaper_conf" "$preview_root/original-hyprpaper.conf"; touch "$preview_root/hyprpaper-existed"; }
+    [[ -f $ghostty_config ]] && { cp "$ghostty_config" "$preview_root/original-ghostty-config"; touch "$preview_root/ghostty-config-existed"; }
+    touch "$preview_root/snapshot"
+  fi
+else
+  mkdir -p "$theme_root/$theme" "$state_root" "$(dirname "$hypr_theme")"
+  cp "$colors" "$theme_root/$theme/colors.toml"
+fi
+
+background=$(get_color background '#101315')
+foreground=$(get_color foreground '#cacccc')
+bright_foreground=$(get_color bright_foreground "$foreground")
+selection=$(get_color selection "$background")
+accent=$(get_color accent "$(get_color blue "$foreground")")
+muted=$(get_color muted "$foreground")
+light_foreground=$(get_color light_foreground "$foreground")
+lighter_background=$(get_color lighter_background "$background")
+red=$(get_color red '#a55555')
+green=$(get_color green "$foreground")
+yellow=$(get_color yellow "$foreground")
+cyan=$(get_color cyan "$accent")
+blue=$(get_color blue "$accent")
+magenta=$(get_color magenta "$accent")
+bright_red=$(get_color bright_red "$red")
+bright_green=$(get_color bright_green "$green")
+bright_yellow=$(get_color bright_yellow "$yellow")
+bright_cyan=$(get_color bright_cyan "$cyan")
+bright_blue=$(get_color bright_blue "$blue")
+bright_magenta=$(get_color bright_magenta "$magenta")
+
+shell_output="$theme_root/$theme/shell.toml"
+[[ ${preview:-false} == true ]] && shell_output="$preview_root/shell.toml"
+cat >"$shell_output" <<EOF
+[bar]
+background = "$background"
+background-alpha = 1.0
+text = "$foreground"
+active = "$red"
+[popups]
+background = "$background"
+background-alpha = 1.0
+text = "$foreground"
+border = "$accent"
+[notifications]
+background = "$background"
+background-alpha = 1.0
+text = "$foreground"
+border = "$accent"
+countdown = "$accent"
+[menu]
+background = "$background"
+background-alpha = 1.0
+text = "$foreground"
+border = "$accent"
+scrim = "$background"
+scrim-alpha = 0.5
+selected-background = "$foreground"
+selected-background-alpha = 0.08
+selected-text = "$accent"
+[tooltip]
+background = "$background"
+background-alpha = 0.97
+text = "$foreground"
+border = "$foreground"
+[controls]
+normal-color = "$foreground"
+normal-fill-alpha = 0.04
+normal-border = "$foreground"
+normal-border-alpha = 0.4
+hover-cursor-color = "$foreground"
+hover-cursor-fill-alpha = 0.08
+hover-cursor-border = "$accent"
+hover-cursor-border-alpha = 0.7
+selected-color = "$foreground"
+selected-fill-alpha = 0.18
+selected-border = "$accent"
+selected-border-alpha = 1.0
+EOF
+
+cat >"$hypr_theme" <<EOF
+-- Generated by omadora-theme; do not edit.
+hl.config({
+  general = { col = { active_border = { colors = { "rgba(${accent#\#}ff)", "rgba(${foreground#\#}ff)" }, angle = 45 }, inactive_border = "rgba(${background#\#}cc)" } },
+  group = { col = { border_active = { colors = { "rgba(${accent#\#}ff)", "rgba(${foreground#\#}ff)" }, angle = 45 }, border_inactive = "rgba(${background#\#}cc)" } },
+})
+EOF
+
+if [[ ${preview:-false} == true ]]; then
+  # Preview only changes the live shell, compositor, and temporary wallpaper.
+  # It deliberately leaves theme state and application configs untouched.
+  wallpaper=$(find "$themes_root/$theme/backgrounds" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) -print -quit 2>/dev/null || true)
+  if [[ -n $wallpaper ]]; then
+    monitor=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused == true) | .name' | head -n1)
+    : "${monitor:=eDP-1}"
+    cat >"$preview_root/hyprpaper.conf" <<EOF
+wallpaper {
+  monitor = $monitor
+  path = $wallpaper
+  fit_mode = cover
+}
+EOF
+    pkill -x hyprpaper 2>/dev/null || true
+    hyprpaper -c "$preview_root/hyprpaper.conf" >/dev/null 2>&1 &
+  fi
+  # Ghostty reloads its main config on SIGUSR2, so it can participate in the
+  # live preview without restarting terminal windows. restore puts this exact
+  # pre-preview config back before issuing the same signal.
+  mkdir -p "$(dirname "$ghostty_config")"
+  cat >"$ghostty_config" <<EOF
+# Generated by omadora-theme preview; do not edit.
+background = $background
+foreground = $foreground
+cursor-color = $bright_foreground
+selection-background = $selection
+selection-foreground = $foreground
+palette = 0=$background
+palette = 1=$red
+palette = 2=$green
+palette = 3=$yellow
+palette = 4=$blue
+palette = 5=$magenta
+palette = 6=$cyan
+palette = 7=$foreground
+palette = 8=$muted
+palette = 9=$bright_red
+palette = 10=$bright_green
+palette = 11=$bright_yellow
+palette = 12=$bright_blue
+palette = 13=$bright_magenta
+palette = 14=$bright_cyan
+palette = 15=$bright_foreground
+EOF
+  pgrep -x ghostty >/dev/null && pkill -SIGUSR2 ghostty || true
+  hyprctl reload 2>/dev/null || true
+  omarchy-shell -q shell applyTheme "$(base64 -w0 "$colors")" "$(base64 -w0 "$shell_output")"
+  printf 'Previewing Omadora theme: %s (run omadora-theme restore to cancel)\n' "$theme"
+  exit 0
+fi
+
+ln -sfn "$theme_root/$theme" "$state_root/theme"
+
+# A complete palette overrides every color supplied by a pre-existing Ghostty
+# theme. SIGUSR2 reloads currently running Ghostty processes.
+mkdir -p "$(dirname "$ghostty_config")"
+cat >"$ghostty_config" <<EOF
+# Generated by omadora-theme; do not edit.
+background = $background
+foreground = $foreground
+cursor-color = $bright_foreground
+selection-background = $selection
+selection-foreground = $foreground
+palette = 0=$background
+palette = 1=$red
+palette = 2=$green
+palette = 3=$yellow
+palette = 4=$blue
+palette = 5=$magenta
+palette = 6=$cyan
+palette = 7=$foreground
+palette = 8=$muted
+palette = 9=$bright_red
+palette = 10=$bright_green
+palette = 11=$bright_yellow
+palette = 12=$bright_blue
+palette = 13=$bright_magenta
+palette = 14=$bright_cyan
+palette = 15=$bright_foreground
+EOF
+pgrep -x ghostty >/dev/null && pkill -SIGUSR2 ghostty || true
+
+# Yazi loads theme.toml independently of yazi.toml. Keep user behavior settings
+# in yazi.toml while generating only its visual layer.
+mkdir -p "$(dirname "$yazi_theme")"
+cat >"$yazi_theme" <<EOF
+# Generated by omadora-theme; do not edit.
+[flavor]
+dark = ""
+light = ""
+[mgr]
+cwd = { fg = "$accent" }
+hovered = { fg = "$foreground", bg = "$lighter_background" }
+preview_hovered = { underline = true }
+find_keyword = { fg = "$yellow", bold = true, underline = true }
+find_position = { fg = "$magenta", bg = "$selection", bold = true }
+symlink_target = { fg = "$cyan", italic = true }
+marker_copied = { fg = "$green", bg = "$green" }
+marker_cut = { fg = "$red", bg = "$red" }
+marker_marked = { fg = "$cyan", bg = "$cyan" }
+marker_selected = { fg = "$yellow", bg = "$yellow" }
+count_copied = { fg = "$background", bg = "$green" }
+count_cut = { fg = "$background", bg = "$red" }
+count_selected = { fg = "$background", bg = "$yellow" }
+border_style = { fg = "$muted" }
+syntect_theme = ""
+[tabs]
+active = { fg = "$background", bg = "$accent", bold = true }
+inactive = { fg = "$foreground", bg = "$selection" }
+[mode]
+normal_main = { fg = "$background", bg = "$accent", bold = true }
+normal_alt = { fg = "$accent", bg = "$selection" }
+select_main = { fg = "$background", bg = "$red", bold = true }
+select_alt = { fg = "$red", bg = "$selection" }
+unset_main = { fg = "$background", bg = "$yellow", bold = true }
+unset_alt = { fg = "$yellow", bg = "$selection" }
+[status]
+progress_label = { fg = "$foreground", bold = true }
+progress_normal = { fg = "$green", bg = "$selection" }
+progress_error = { fg = "$yellow", bg = "$red" }
+[which]
+mask = { bg = "$background" }
+cand = { fg = "$cyan" }
+rest = { fg = "$muted" }
+desc = { fg = "$magenta" }
+separator_style = { fg = "$muted" }
+[confirm]
+border = { fg = "$accent" }
+title = { fg = "$accent" }
+[spot]
+border = { fg = "$accent" }
+title = { fg = "$accent" }
+tbl_col = { fg = "$accent" }
+tbl_cell = { fg = "$yellow", bg = "$selection" }
+[notify]
+title_info = { fg = "$green" }
+title_warn = { fg = "$yellow" }
+title_error = { fg = "$red" }
+[pick]
+border = { fg = "$accent" }
+active = { fg = "$magenta", bold = true }
+[input]
+border = { fg = "$accent" }
+[cmp]
+border = { fg = "$accent" }
+[tasks]
+border = { fg = "$accent" }
+title = { fg = "$foreground" }
+hovered = { fg = "$magenta", bold = true }
+[help]
+on = { fg = "$cyan" }
+run = { fg = "$magenta" }
+hovered = { fg = "$foreground", bg = "$selection", bold = true }
+footer = { fg = "$background", bg = "$foreground" }
+EOF
+
+mkdir -p "$(dirname "$btop_theme")"
+cat >"$btop_theme" <<EOF
+# Generated by omadora-theme; do not edit.
+theme[main_bg]="$background"
+theme[main_fg]="$foreground"
+theme[title]="$foreground"
+theme[hi_fg]="$accent"
+theme[selected_bg]="$selection"
+theme[selected_fg]="$accent"
+theme[inactive_fg]="$muted"
+theme[graph_text]="$light_foreground"
+theme[meter_bg]="$selection"
+theme[proc_misc]="$light_foreground"
+theme[cpu_box]="$magenta"
+theme[mem_box]="$green"
+theme[net_box]="$red"
+theme[proc_box]="$accent"
+theme[div_line]="$muted"
+theme[temp_start]="$green"
+theme[temp_mid]="$yellow"
+theme[temp_end]="$red"
+theme[cpu_start]="$cyan"
+theme[cpu_mid]="$blue"
+theme[cpu_end]="$magenta"
+theme[free_start]="$magenta"
+theme[free_mid]="$blue"
+theme[free_end]="$cyan"
+theme[cached_start]="$blue"
+theme[cached_mid]="$cyan"
+theme[cached_end]="$magenta"
+theme[available_start]="$yellow"
+theme[available_mid]="$red"
+theme[available_end]="$red"
+theme[used_start]="$green"
+theme[used_mid]="$cyan"
+theme[used_end]="$blue"
+theme[download_start]="$yellow"
+theme[download_mid]="$red"
+theme[download_end]="$red"
+theme[upload_start]="$green"
+theme[upload_mid]="$cyan"
+theme[upload_end]="$blue"
+theme[process_start]="$cyan"
+theme[process_mid]="$blue"
+theme[process_end]="$magenta"
+theme[gradient_color_0]="$background"
+theme[gradient_color_1]="$lighter_background"
+theme[gradient_color_2]="$selection"
+theme[gradient_color_3]="$muted"
+theme[gradient_color_4]="$light_foreground"
+theme[gradient_color_5]="$foreground"
+theme[gradient_color_6]="$bright_foreground"
+theme[gradient_color_7]="$bright_foreground"
+EOF
+write_btop_config
+pgrep -x btop >/dev/null && pkill -SIGUSR2 btop || true
+
+wallpaper=$(find "$themes_root/$theme/backgrounds" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) -print -quit 2>/dev/null || true)
+if [[ -n $wallpaper ]]; then
+  monitor=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused == true) | .name' | head -n1)
+  : "${monitor:=eDP-1}"
+  cat >"$hyprpaper_conf" <<EOF
+wallpaper {
+  monitor = $monitor
+  path = $wallpaper
+  fit_mode = cover
+}
+EOF
+  pkill -x hyprpaper 2>/dev/null || true
+  hyprpaper -c "$hyprpaper_conf" >/dev/null 2>&1 &
+fi
+
+hyprctl reload 2>/dev/null || true
+colors_b64=$(base64 -w0 "$theme_root/$theme/colors.toml")
+shell_b64=$(base64 -w0 "$theme_root/$theme/shell.toml")
+omarchy-shell -q shell applyTheme "$colors_b64" "$shell_b64"
+printf 'Applied Omadora theme: %s\n' "$theme"

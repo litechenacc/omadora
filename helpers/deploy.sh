@@ -17,7 +17,7 @@ esac
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 destination_dir="${HOME}/.local/bin"
-helpers=(omadora-audio-output-volume omarchy-system-stats)
+helpers=(omadora-audio-output-volume omarchy-system-stats omadora-theme)
 
 [[ -x /usr/bin/wpctl ]] || {
   echo 'wpctl is required; install the WirePlumber/PipeWire CLI first.' >&2

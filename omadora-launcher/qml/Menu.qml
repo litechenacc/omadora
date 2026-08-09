@@ -59,6 +59,10 @@ Item {
   readonly property bool dmenuActive: mode === "select" || mode === "input"
   property string dmenuPrompt: ""
   property var dmenuOptions: []
+  // Optional command prefix for selectors that provide live previews. The
+  // selected row value is shell-quoted and appended after a short debounce.
+  property string dmenuHighlightCommand: ""
+  property string dmenuHighlightValue: ""
   property string selectionFile: ""
   property string doneFile: ""
   property int dmenuWidth: 300
@@ -137,6 +141,28 @@ Item {
   property int cardHeight: root.dmenuActive
     ? Math.min(contentMargin * 2 + headerHeight + (mode === "input" ? 0 : contentSpacing + visibleRowsHeight), panel.height - Style.gapsOut * 2)
     : Math.min(contentMargin * 2 + headerHeight + contentSpacing + visibleRowsHeight, panel.height - Style.gapsOut * 2)
+
+  Timer {
+    id: dmenuHighlightTimer
+    interval: 120
+    repeat: false
+    onTriggered: {
+      if (root.opened && root.dmenuActive && root.mode === "select" && root.dmenuHighlightCommand && root.dmenuHighlightValue)
+        root.runAction(root.dmenuHighlightCommand + " " + Util.shellQuote(root.dmenuHighlightValue))
+    }
+  }
+
+  onSelectedIndexChanged: scheduleDmenuHighlight()
+
+  function scheduleDmenuHighlight() {
+    if (!root.opened || !root.dmenuActive || root.mode !== "select" || !root.dmenuHighlightCommand) return
+    if (root.selectedIndex < 0 || root.selectedIndex >= displayModel.count) return
+    var row = displayModel.get(root.selectedIndex)
+    var value = String(row.value || row.label || "")
+    if (!value || value === root.dmenuHighlightValue && dmenuHighlightTimer.running) return
+    root.dmenuHighlightValue = value
+    dmenuHighlightTimer.restart()
+  }
 
   function finishRequest(selection) {
     if (!root.requestActive || !root.doneFile) {
@@ -866,6 +892,8 @@ Item {
     aiSearchMode = false
     dmenuPrompt = String(payload.prompt || (mode === "input" ? "Input" : "Select"))
     dmenuOptions = Array.isArray(payload.options) ? payload.options : []
+    dmenuHighlightCommand = String(payload.highlightCommand || "")
+    dmenuHighlightValue = ""
     selectionFile = String(payload.selectionFile || "")
     doneFile = String(payload.doneFile || "")
     requestActive = !!doneFile
@@ -882,7 +910,7 @@ Item {
     opened = true
     rebuildDisplay()
 
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() { root.scheduleDmenuHighlight(); keyCatcher.forceActiveFocus() })
   }
   ListModel { id: displayModel }
 

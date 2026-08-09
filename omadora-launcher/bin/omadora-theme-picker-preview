@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Browse themes with a live, non-persistent preview. Enter commits the selected
+# theme; Escape/click-away restores the previously committed theme.
+set -euo pipefail
+
+if theme=$(omadora-theme list | omadora-menu-select 'Omadora themes — live preview' --on-highlight 'omadora-theme preview' -- --width 520 --height 460); then
+  [[ -n $theme ]] && exec omadora-theme set "$theme"
+fi
+omadora-theme restore >/dev/null 2>&1 || true

@@ -42,7 +42,7 @@ while (($#)); do
 done
 
 # Install helpers before the entry point so its dependency is available first.
-commands=(omadora-shell omadora-menu-select omadora-menu-input omadora-system-logout omadora-open-url omadora-launcher omadora-launcher-toggle)
+commands=(omadora-shell omadora-menu-select omadora-menu-input omadora-system-logout omadora-open-url omadora-theme-picker-preview omadora-launcher omadora-launcher-toggle)
 for command in "${commands[@]}"; do
   source="$source_dir/$command"
   [[ -f $source ]] || { echo "Missing source: $source" >&2; exit 1; }

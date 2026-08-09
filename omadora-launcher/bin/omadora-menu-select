@@ -21,17 +21,19 @@ shift
 
 options=()
 initial_query=""
+highlight_command=""
 menu_width=""
 menu_maxheight=""
 
 while (( $# > 0 )); do
-  if [[ $1 == "--query" ]]; then
+  if [[ $1 == "--query" || $1 == "--on-highlight" ]]; then
+    option=$1
     shift
     if (( $# == 0 )); then
-      echo "omadora-menu-select: --query requires text" >&2
+      echo "omadora-menu-select: $option requires a value" >&2
       exit 1
     fi
-    initial_query="$1"
+    if [[ $option == "--query" ]]; then initial_query="$1"; else highlight_command="$1"; fi
     shift
     continue
   fi
@@ -116,8 +118,9 @@ payload=$(perl -MEncode=decode -MJSON::PP=encode_json,decode_json -e '
   $payload->{width} = int($ARGV[4]) if length($ARGV[4] // "");
   $payload->{maxHeight} = int($ARGV[5]) if length($ARGV[5] // "");
   $payload->{initialQuery} = decode("UTF-8", $ARGV[6]) if length($ARGV[6] // "");
+  $payload->{highlightCommand} = decode("UTF-8", $ARGV[7]) if length($ARGV[7] // "");
   print encode_json($payload)
-' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight" "$initial_query")
+' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight" "$initial_query" "$highlight_command")
 
 # A second launcher invocation is a toggle: close the existing shared menu
 # instead of sending a second request whose completion file could never fill.
