@@ -13,8 +13,10 @@ This repository is the **planning, documentation, and reproducible integration l
 ├── omadora-hyprland-uwsm.desktop     Additive Omadora Wayland session entry
 ├── manifests/                        Reviewed Fedora package manifests
 ├── omadora-launcher/                 Tracked launcher source and user deployer
-├── scripts/                          Maintained, executable operational helpers
-├── assets/                           Version-controlled assets/templates deployed by scripts
+├── helpers/                          Handy shell-hotkey and UX helpers, plus their deploy command
+├── scripts/                          Root deployment and standalone maintenance scripts
+├── Makefile                          Unified deployment and validation entry point
+├── assets/                           Version-controlled assets/templates deployed by helpers
 ├── docs/                             Design records, acceptance checks, and this guide
 ├── upstream/                         Ignored pinned Omarchy reference checkout
 ├── logs/                             Ignored command/test evidence
@@ -28,7 +30,6 @@ This repository is the **planning, documentation, and reproducible integration l
 | File | Purpose |
 | --- | --- |
 | `ACCEPTANCE.md` | Manual acceptance checklist for a fresh Hyprland login. |
-| `DIVERGENCE.md` | Explicit Fedora/Omadora differences from upstream Omarchy. |
 | `FEATURE-PORT.md` | Selective Quickshell and interaction-port backlog. |
 | `STRUCTURE.md` | This repository map and ownership guide. |
 
@@ -36,17 +37,26 @@ This repository is the **planning, documentation, and reproducible integration l
 
 Reviewed package lists used during the staged Fedora setup. They describe package intent; they are not unattended installation scripts.
 
+### `helpers/`
+
+Helpers are the executable, maintained integration surface. They provide handy shell-hotkey and UX behavior, together with the deployment commands that install them on the machine:
+
+| Script | Role |
+| --- | --- |
+| `omarchy-system-stats` | Fedora compatibility helper used by imported shell components. |
+| `omadora-audio-output-volume` | PipeWire-native default-output volume helper; preserves the Quickshell OSD without requiring `pactl`. |
+| `deploy.sh` | Validates or atomically installs all non-root helpers into `~/.local/bin`. |
+
+Use `make deploy` to deploy non-root helpers and launcher files, then `sudo make deploy-root` for root-owned files. `make check` validates both parts without writing files.
+
 ### `scripts/`
 
-Scripts are the executable, maintained integration surface:
+Standalone maintenance and root-deployment scripts that are not shell-hotkey or UX helpers:
 
 | Script | Role |
 | --- | --- |
 | `create-btrfs-snapshot.sh` | Creates the pre-change Btrfs safety snapshot. |
-| `install-omadora-sddm-greeter.sh` | Root-only installer for the Omadora-maintained, Omarchy-derived SDDM greeter. It creates backups outside `sddm.conf.d`. |
-| `omarchy-system-stats` | Fedora compatibility helper used by imported shell components. |
-
-Run a script only after reviewing it. Root-required scripts state that requirement and should be invoked explicitly with `sudo`; they never consume credentials from the repository.
+| `deploy-root.sh` | Root-only SDDM greeter deployer. It backs up the prior Omarchy theme/config before replacing it. |
 
 ### `omadora-launcher/`
 
@@ -57,10 +67,10 @@ Quickshell menu implementation into the selected shell checkout.
 
 ### `assets/`
 
-Declarative inputs for scripts, not a copy of all installed system state.
+Declarative inputs for helpers, not a copy of all installed system state.
 
 - `assets/sddm/omadora/Main.qml` is the maintained SDDM template: wallpaper background, no Omarchy wordmark or lock icon, and the translucent white-outlined password field.
-- `install-omadora-sddm-greeter.sh` combines this template with pinned upstream SDDM assets and a fetched 4K wallpaper at deployment time.
+- `scripts/deploy-root.sh` combines this template with pinned upstream SDDM assets and a fetched 4K wallpaper at deployment time.
 
 ### Session entry
 
@@ -80,8 +90,8 @@ The ignored upstream checkout is currently documented in `README.md` and `STATUS
 ## Ownership boundaries
 
 - **Fedora:** RPM packages, system services, `/etc` policy, boot, and base display-manager installation.
-- **Omadora repository:** reviewed session entry, documentation, manifests, scripts, templates, and Fedora compatibility adapters.
+- **Omadora repository:** reviewed session entry, documentation, manifests, helpers, templates, and Fedora compatibility adapters.
 - **Omarchy upstream:** attributed reference source for selected Quickshell/SDDM concepts and assets.
 - **User state:** live Hyprland, Quickshell, browser, and personal configuration under the home directory.
 
-When adding work, place durable documentation in `docs/`, executable repeatable work in `scripts/`, deployable static inputs in `assets/`, and do not commit secrets, local logs, backups, or the upstream checkout.
+When adding work, place durable documentation in `docs/`, handy shell-hotkey or UX helpers in `helpers/`, deployable static inputs in `assets/`, and do not commit secrets, local logs, backups, or the upstream checkout.

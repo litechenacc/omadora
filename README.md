@@ -18,7 +18,7 @@ The name means **Omakaze Fedora**: an Omarchy-like, opinionated desktop made for
 
 Omadora is **not** Omarchy installed on Fedora, an Arch derivative, or an installer. It does not run the LinuxBeginnings installer, use AUR tooling, replace the display manager, or adopt Omarchy's boot, `/etc`, package-management, or system-theme scripts.
 
-The upstream source is pinned at commit `11a6ae2230abb6ab3a4af1a31a79b922ba3ead64` under `upstream/omarchy` and is treated as reference material. See [docs/DIVERGENCE.md](docs/DIVERGENCE.md) for the deliberate differences.
+The upstream source is pinned at commit `11a6ae2230abb6ab3a4af1a31a79b922ba3ead64` under `upstream/omarchy` and is treated as reference material.
 
 ## Daily shortcuts
 
@@ -45,7 +45,7 @@ The upstream source is pinned at commit `11a6ae2230abb6ab3a4af1a31a79b922ba3ead6
 
 ## Repository scope
 
-This repository records the plan, decision log, manifests, session entry, scripts, and documentation. Active user configuration lives in `~/.config` and `~/.local/bin`; it is intentionally not copied into this repository with private state or browser data. Backups, logs, and the upstream checkout are excluded from Git.
+This repository records the plan, decision log, manifests, session entry, helpers, and documentation. Active user configuration lives in `~/.config` and `~/.local/bin`; it is intentionally not copied into this repository with private state or browser data. Backups, logs, and the upstream checkout are excluded from Git.
 
 See [docs/STRUCTURE.md](docs/STRUCTURE.md) for the repository map, deployment boundaries, and ownership model.
 

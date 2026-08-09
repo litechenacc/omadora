@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Adjust the PipeWire default output volume without relying on PulseAudio/pactl.
+# Usage: omadora-audio-output-volume <raise|lower|mute-toggle|+N|-N>
+set -euo pipefail
+
+action="${1:-}"
+case "$action" in
+  raise) action='5%+' ;;
+  lower) action='5%-' ;;
+  [+-][0-9]*)
+    direction="${action:0:1}"
+    amount="${action:1}"
+    action="${amount}%${direction}"
+    ;;
+esac
+
+case "$action" in
+  mute-toggle)
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+    ;;
+  [0-9]*%[+-])
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+    wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "$action"
+    ;;
+  *)
+    echo "Usage: ${0##*/} <raise|lower|mute-toggle|+N|-N>" >&2
+    exit 2
+    ;;
+esac
+
+status="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+volume="$(awk '/Volume:/ { printf "%d", $2 * 100 + 0.5; exit }' <<<"$status")"
+if [[ "$status" == *MUTED* ]] || [[ "$volume" == 0 ]]; then
+  icon='volume-muted'
+else
+  icon='volume-high'
+fi
+
+# Preserve the Omarchy/Quickshell OSD route while keeping volume control
+# PipeWire-native.
+omarchy-osd -i "$icon" -p "$volume"

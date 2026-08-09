@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Install Omadora's wallpaper-backed Omarchy-derived SDDM greeter.
-# Run from any directory with: sudo ./scripts/install-omadora-sddm-greeter.sh
+# Deploy Omadora's root-owned wallpaper-backed Omarchy-derived SDDM greeter.
+# Run from any directory with: sudo ./scripts/deploy-root.sh
 set -euo pipefail
 
-if (( EUID != 0 )); then
-  echo "Run as root: sudo $0" >&2
-  exit 1
-fi
+check_only=false
+case "${1:-}" in
+  '') ;;
+  --check) check_only=true ;;
+  -h|--help) echo "Usage: $0 [--check]"; exit 0 ;;
+  *) echo "Usage: $0 [--check]" >&2; exit 2 ;;
+esac
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source_theme="$repo_root/upstream/omarchy/default/sddm/omarchy"
@@ -20,6 +23,16 @@ backup=/root/omadora-sddm-greeter-backup-$stamp
 [[ -d "$source_theme" ]] || { echo "Missing pinned Omarchy source: $source_theme" >&2; exit 1; }
 [[ -f "$template" ]] || { echo "Missing QML template: $template" >&2; exit 1; }
 command -v curl >/dev/null || { echo "curl is required to fetch the wallpaper" >&2; exit 1; }
+
+if $check_only; then
+  echo 'Root deployment sources and dependencies are valid.'
+  exit 0
+fi
+
+if (( EUID != 0 )); then
+  echo "Run as root: sudo $0" >&2
+  exit 1
+fi
 
 install -d -m 0700 "$backup"
 [[ -d "$theme" ]] && cp -a "$theme" "$backup/theme"

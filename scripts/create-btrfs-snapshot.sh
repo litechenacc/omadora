@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Create read-only snapshots outside the mounted root/home subvolumes.
-# Run interactively: ~/wts/omadora/scripts/create-btrfs-snapshot.sh
+# Run interactively: ~/wts/omadora/helpers/create-btrfs-snapshot.sh
 set -euo pipefail
 
 project="$HOME/wts/omadora"

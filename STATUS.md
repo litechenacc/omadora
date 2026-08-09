@@ -20,6 +20,7 @@
 - [x] A deliberately minimal Omarchy Quickshell shell configuration was smoke-tested and is running in the current Hyprland session.
 - [x] Installed `inotify-tools`, required by Omarchy's plugin watcher.
 - [x] Added a Fedora-compatible `omarchy-audio-output-sink` helper in `~/.local/bin`.
+- [x] Replaced imported `pactl` media-key volume control with the tracked, PipeWire-native `omadora-audio-output-volume` helper; normal and precise Fn volume bindings and the Quickshell OSD were verified.
 - [x] Created and installed the additive `Omadora (Hyprland UWSM)` login session; it does not replace the stock Hyprland or KineticWE entries.
 
 - [x] Phase 5 UWSM session verified: graphical-session.target and the Hyprland compositor unit are active.
